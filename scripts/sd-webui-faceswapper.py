@@ -22,7 +22,6 @@ class Script(scripts.Script):
     def title(self):
         return 'Steps animation'
 
-
     # is ui visible: process/postprocess triggers for always-visible scripts otherwise use run as entry point
     def show(self, is_img2img):
         return scripts.AlwaysVisible
@@ -53,38 +52,30 @@ class Script(scripts.Script):
             FACE_ANALYSER.prepare(ctx_id=0, det_size=(640, 640))
         return FACE_ANALYSER
 
-    def get_face_single(self, img_data):
-        face = self.get_face_analyser().get(img_data)
-        try:
-            return sorted(face, key=lambda x: x.bbox[0])[0]
-        except IndexError:
-            return None
-
-    # runs on each step for always-visible scripts
-    #def process(self, p, is_enabled, source_face): # pylint: disable=arguments-differ, unused-argument
-    #    if is_enabled:
-    #        print("Do something here")
-
     # run at the end of sequence for always-visible scripts
     def postprocess(self, p, processed, is_enabled, replace, source_face):  # pylint: disable=arguments-differ
         if is_enabled:
             target_img = cv2.cvtColor(np.asarray(source_face), cv2.COLOR_RGB2BGR)
-            target = self.get_face_single(target_img)
-
+            try:
+                target = sorted(self.get_face_analyser().get(target_img), key=lambda x: x.bbox[0])[0]
+            except IndexError:
+                # No face?
+                return None
             img_len = len(processed.images)
-
             with tqdm(total=img_len, desc="Face swapping", unit="image") as progress:
                 for i in range(img_len):
                     try:
                         img = cv2.cvtColor(np.asarray(processed.images[i]), cv2.COLOR_RGB2BGR)
-                        face = self.get_face_single(img)
-                        result = cv2.cvtColor(self.get_face_swapper().get(img, face, target, paste_back=True), cv2.COLOR_BGR2RGB)
+                        faces = self.get_face_analyser().get(img)
+                        if faces:
+                            for face in faces:
+                                img = self.get_face_swapper().get(img, face, target, paste_back=True)
+                            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                         if replace:
-                            processed.images[i] = result
+                            processed.images[i] = img
                         else:
-                            processed.images.append(result)
+                            processed.images.append(img)
                     except Exception as e:
                         print(e)
                         pass
                     progress.update(1)
-
