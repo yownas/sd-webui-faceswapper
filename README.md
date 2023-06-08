@@ -14,4 +14,4 @@ This extension is inspired by [Roop](https://github.com/s0md3v/roop), you can fi
 Check the `Enable Script` checkbox and upload an image with a face, generate as usual.
 
 # Disclaimer
-I pains me that this part is needed. I do not condone or encourage ANY malicious use of this extension. It is intented as a fun experiment and a tool to get consistant characters. Do not use it with any real people without their explicit concent. Realize that misuse might come with actual legal consequences, do not be a creepy idiot.
+It pains me that this part is needed. I do not condone or encourage ANY malicious use of this extension. It is intented as a fun experiment and a tool to get consistant characters. Do not use it with any real people without their explicit concent. Realize that misuse might come with actual legal consequences, do not be a creepy idiot.
