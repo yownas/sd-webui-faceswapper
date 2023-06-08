@@ -8,8 +8,7 @@ from PIL import Image
 import numpy as np
 from tqdm import tqdm
 
-from modules import scripts
-from modules import shared
+from modules import scripts, shared, face_restoration
 
 FACE_ANALYSER = None
 FACE_SWAPPER = None
@@ -32,10 +31,11 @@ class Script(scripts.Script):
             with gr.Row():
                 is_enabled = gr.Checkbox(label='Script Enabled', value=False)
                 replace = gr.Checkbox(label='Replace original', value=False)
+                restore = gr.Checkbox(label='Restore faces', value=False)
             with gr.Row():
                 source_face = gr.Image(label="Face")
 
-        return [is_enabled, replace, source_face]
+        return [is_enabled, replace, restore, source_face]
 
     def get_face_swapper(self):
         global FACE_SWAPPER
@@ -53,7 +53,7 @@ class Script(scripts.Script):
         return FACE_ANALYSER
 
     # run at the end of sequence for always-visible scripts
-    def postprocess(self, p, processed, is_enabled, replace, source_face):  # pylint: disable=arguments-differ
+    def postprocess(self, p, processed, is_enabled, replace, restore, source_face):  # pylint: disable=arguments-differ
         if is_enabled:
             target_img = cv2.cvtColor(np.asarray(source_face), cv2.COLOR_RGB2BGR)
             try:
@@ -72,6 +72,8 @@ class Script(scripts.Script):
                                 img = self.get_face_swapper().get(img, face, target, paste_back=True)
                             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                         if replace:
+                            if restore:
+                                img = Image.fromarray(face_restoration.restore_faces(np.asarray(img)))
                             processed.images[i] = img
                         else:
                             processed.images.append(img)
