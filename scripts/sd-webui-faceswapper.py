@@ -70,10 +70,10 @@ class Script(scripts.Script):
                         if faces:
                             for face in faces:
                                 img = self.get_face_swapper().get(img, face, target, paste_back=True)
-                            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                        if restore:
+                            img = Image.fromarray(face_restoration.restore_faces(np.asarray(img)))
                         if replace:
-                            if restore:
-                                img = Image.fromarray(face_restoration.restore_faces(np.asarray(img)))
                             processed.images[i] = img
                         else:
                             processed.images.append(img)
