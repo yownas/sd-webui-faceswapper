@@ -19,7 +19,7 @@ class Script(scripts.Script):
 
     # script title to show in ui
     def title(self):
-        return 'Steps animation'
+        return 'Face swapper'
 
     # is ui visible: process/postprocess triggers for always-visible scripts otherwise use run as entry point
     def show(self, is_img2img):
