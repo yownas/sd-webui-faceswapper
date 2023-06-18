@@ -60,7 +60,8 @@ class Script(scripts.Script):
                 source_face = decode_base64_to_image(source_face)
             target_img = cv2.cvtColor(np.asarray(source_face), cv2.COLOR_RGB2BGR)
             try:
-                target = sorted(self.get_face_analyser().get(target_img), key=lambda x: x.bbox[0])[0]
+                targets = sorted(self.get_face_analyser().get(target_img), key=lambda x: x.bbox[0])
+                tgt=0
             except IndexError:
                 # No face?
                 return None
@@ -69,10 +70,11 @@ class Script(scripts.Script):
                 for i in range(img_len):
                     try:
                         img = cv2.cvtColor(np.asarray(processed.images[i]), cv2.COLOR_RGB2BGR)
-                        faces = self.get_face_analyser().get(img)
+                        faces = sorted(self.get_face_analyser().get(img), key=lambda x: x.bbox[0])
                         if faces:
                             for face in faces:
-                                img = self.get_face_swapper().get(img, face, target, paste_back=True)
+                                img = self.get_face_swapper().get(img, face, targets[tgt], paste_back=True)
+                                tgt=(tgt+1)%len(targets)
                         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                         if restore:
                             img = Image.fromarray(face_restoration.restore_faces(np.asarray(img)))
