@@ -55,6 +55,9 @@ class Script(scripts.Script):
     # run at the end of sequence for always-visible scripts
     def postprocess(self, p, processed, is_enabled, replace, restore, source_face):  # pylint: disable=arguments-differ
         if is_enabled:
+            if isinstance(source_face, str):
+                from modules.api.api import decode_base64_to_image
+                source_face = decode_base64_to_image(source_face)
             target_img = cv2.cvtColor(np.asarray(source_face), cv2.COLOR_RGB2BGR)
             try:
                 target = sorted(self.get_face_analyser().get(target_img), key=lambda x: x.bbox[0])[0]
