@@ -18,7 +18,6 @@ The target image may contain multiple faces. These will be selected round-robin,
 You can also use Gradios sketch tool to mask faces you do not want to include.
 
 # API
-# create API client
 Simple example using [sdwebuiapi](https://github.com/mix1009/sdwebuiapi).
 
 ```
