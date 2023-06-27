@@ -9,6 +9,7 @@ import numpy as np
 from tqdm import tqdm
 from modules.api.api import decode_base64_to_image
 from modules import scripts, shared, face_restoration
+import re
 
 FACE_ANALYSER = None
 FACE_SWAPPER = None
@@ -34,8 +35,10 @@ class Script(scripts.Script):
                 restore = gr.Checkbox(label='Restore faces', value=False)
             with gr.Row():
                 source_face = gr.Image(label="Face", tool="sketch", type="numpy")
+            with gr.Row():
+                swap_rules = gr.Textbox(label="Swap rules", lines=1)
 
-        return [is_enabled, replace, restore, source_face]
+        return [is_enabled, replace, restore, source_face, swap_rules]
 
     def get_face_swapper(self):
         global FACE_SWAPPER
@@ -53,7 +56,7 @@ class Script(scripts.Script):
         return FACE_ANALYSER
 
     # run at the end of sequence for always-visible scripts
-    def postprocess(self, p, processed, is_enabled, replace, restore, source_face_dict):  # pylint: disable=arguments-differ
+    def postprocess(self, p, processed, is_enabled, replace, restore, source_face_dict, swap_rules):  # pylint: disable=arguments-differ
         if is_enabled:
             if isinstance(source_face_dict["image"], str):
                 source_face = decode_base64_to_image(source_face_dict["image"])
@@ -82,9 +85,24 @@ class Script(scripts.Script):
                         img = cv2.cvtColor(np.asarray(processed.images[i]), cv2.COLOR_RGB2BGR)
                         faces = sorted(self.get_face_analyser().get(img), key=lambda x: x.bbox[0])
                         if faces:
-                            for face in faces:
-                                img = self.get_face_swapper().get(img, face, targets[tgt], paste_back=True)
-                                tgt=(tgt+1)%len(targets)
+                            if not swap_rules:
+                                swap_rules = '*>*' # default rule
+                            swap_rules = re.sub('[\s;:|]+', ' ', swap_rules)
+                            swap_pairs = {}
+                            for rule in swap_rules.split(' '):
+                                in_face, out_faces = rule.split('>', 1)
+                                for out_face in out_faces.split(','):
+                                    swap_pairs[out_face] = -1 if in_face == '*' else int(in_face) 
+
+                            rr = 1 # Start round-robin at face #1
+                            for idx in range(1, len(faces)+1):
+                                idx_s = str(idx)
+                                in_face = swap_pairs[idx_s] if idx_s in swap_pairs else swap_pairs['*'] if '*' in swap_pairs else None
+                                if in_face == -1: # round-robin
+                                    in_face = rr%len(targets)
+                                    rr+=1
+                                if in_face is not None:
+                                    img = self.get_face_swapper().get(img, faces[idx-1], targets[in_face-1], paste_back=True)
                         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                         if restore:
                             img = Image.fromarray(face_restoration.restore_faces(np.asarray(img)))
