@@ -61,13 +61,13 @@ class Script(scripts.Script):
             target_img = cv2.cvtColor(np.asarray(source_face), cv2.COLOR_RGB2BGR)
             try:
                 targets = sorted(self.get_face_analyser().get(target_img), key=lambda x: x.bbox[0])
-                tgt=0
             except IndexError:
                 # No face?
                 return None
             img_len = len(processed.images)
             with tqdm(total=img_len, desc="Face swapping", unit="image") as progress:
                 for i in range(img_len):
+                    tgt=0
                     try:
                         img = cv2.cvtColor(np.asarray(processed.images[i]), cv2.COLOR_RGB2BGR)
                         faces = sorted(self.get_face_analyser().get(img), key=lambda x: x.bbox[0])
