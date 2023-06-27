@@ -7,7 +7,7 @@ import onnxruntime
 from PIL import Image
 import numpy as np
 from tqdm import tqdm
-
+from modules.api.api import decode_base64_to_image
 from modules import scripts, shared, face_restoration
 
 FACE_ANALYSER = None
@@ -33,7 +33,7 @@ class Script(scripts.Script):
                 replace = gr.Checkbox(label='Replace original', value=False)
                 restore = gr.Checkbox(label='Restore faces', value=False)
             with gr.Row():
-                source_face = gr.Image(label="Face")
+                source_face = gr.Image(label="Face", tool="sketch", type="numpy")
 
         return [is_enabled, replace, restore, source_face]
 
@@ -53,12 +53,22 @@ class Script(scripts.Script):
         return FACE_ANALYSER
 
     # run at the end of sequence for always-visible scripts
-    def postprocess(self, p, processed, is_enabled, replace, restore, source_face):  # pylint: disable=arguments-differ
+    def postprocess(self, p, processed, is_enabled, replace, restore, source_face_dict):  # pylint: disable=arguments-differ
         if is_enabled:
-            if isinstance(source_face, str):
-                from modules.api.api import decode_base64_to_image
-                source_face = decode_base64_to_image(source_face)
+            if isinstance(source_face_dict["image"], str):
+                source_face = decode_base64_to_image(source_face_dict["image"])
+            else:
+                source_face = source_face_dict["image"]
+            if isinstance(source_face_dict["mask"], str):
+                source_face_mask = decode_base64_to_image(source_face_dict["mask"])
+            else:
+                source_face_mask = source_face_dict["mask"]
+
             target_img = cv2.cvtColor(np.asarray(source_face), cv2.COLOR_RGB2BGR)
+            if source_face_mask is not None:
+                target_mask = cv2.cvtColor(np.asarray(source_face_mask), cv2.COLOR_RGB2BGR)
+                target_img = cv2.bitwise_and(target_img, cv2.bitwise_not(target_mask))
+
             try:
                 targets = sorted(self.get_face_analyser().get(target_img), key=lambda x: x.bbox[0])
             except IndexError:
