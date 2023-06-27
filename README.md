@@ -17,8 +17,14 @@ The target image may contain multiple faces. These will be selected round-robin,
 
 You can also use Gradios sketch tool to mask faces you do not want to include.
 
+At the bottom there is a textbox for "swap rules" which will let you decide which faces are places where.
+
+The format is `(target face)>(generated face number(s))`, for example `2>1,3` will take the second face from the left in the image you uploaded and place it on the first and third face in the generated image. Multiple rules can be added, separated with a space or newline (or one of `:;|`). Using `*` will mean any face in the generated image that doesn't have a rule for it, or a face selected round-robin from the uploaded image.
+
 # API
 Simple example using [sdwebuiapi](https://github.com/mix1009/sdwebuiapi).
+
+Args are: Enabled, Replace original, Restore faces, the input image and mask (can be None), and the Swap rule string (can be None).
 
 ```
 import webuiapi
@@ -40,7 +46,7 @@ result1 = api.txt2img(
         seed=-1,
         alwayson_scripts = {
             'face swapper': {
-                    'args': [True, True, True, {'image': face, 'mask': None}],
+                    'args': [True, True, True, {'image': face, 'mask': None}, None],
                 }
             }
         )
