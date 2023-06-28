@@ -92,19 +92,19 @@ class Script(scripts.Script):
                             swap_rules = re.sub(r'(^ | $)', r'', swap_rules) # Trim
 
                             swap_pairs = {}
-                            rr_targets = list(range(len(targets)))
+                            rr_targets = list(range(1, len(targets)+1))
                             for rule in swap_rules.split(' '):
                                 in_face, out_faces = rule.split('>', 1)
                                 if out_faces == '*':
                                   if in_face == '*':
-                                      rr_targets = list(range(len(targets)))
+                                      rr_targets = list(range(1, len(targets)+1))
                                   else:
                                       rr_targets = list(map(int, in_face.split(',')))
                                 else:
                                     for out_face in out_faces.split(','):
                                         swap_pairs[out_face] = -1 if in_face == '*' else int(in_face) 
 
-                            rr = 1
+                            rr = 0
                             for idx in range(1, len(faces)+1):
                                 idx_s = str(idx)
                                 in_face = swap_pairs[idx_s] if idx_s in swap_pairs else swap_pairs['*'] if '*' in swap_pairs else -1
