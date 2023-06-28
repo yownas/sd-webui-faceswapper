@@ -87,19 +87,30 @@ class Script(scripts.Script):
                         if faces:
                             if not swap_rules:
                                 swap_rules = '*>*' # default rule
-                            swap_rules = re.sub('[\s;:|]+', ' ', swap_rules)
+                            swap_rules = re.sub(r'[\s;:|]+', r' ', swap_rules)
+                            swap_rules = re.sub(r' *([>,]) *', r'\1', swap_rules) # Remove \s around > & ,
+                            swap_rules = re.sub(r' +', r' ', swap_rules)
+                            swap_rules = re.sub(r'(^ | $)', r'', swap_rules) # Trim
+
                             swap_pairs = {}
+                            rr_targets = list(range(len(targets)))
                             for rule in swap_rules.split(' '):
                                 in_face, out_faces = rule.split('>', 1)
-                                for out_face in out_faces.split(','):
-                                    swap_pairs[out_face] = -1 if in_face == '*' else int(in_face) 
+                                if out_faces == '*':
+                                  if in_face == '*':
+                                      rr_targets = list(range(len(targets)))
+                                  else:
+                                      rr_targets = list(map(int, in_face.split(',')))
+                                else:
+                                    for out_face in out_faces.split(','):
+                                        swap_pairs[out_face] = -1 if in_face == '*' else int(in_face) 
 
-                            rr = 1 # Start round-robin at face #1
+                            rr = 0
                             for idx in range(1, len(faces)+1):
                                 idx_s = str(idx)
-                                in_face = swap_pairs[idx_s] if idx_s in swap_pairs else swap_pairs['*'] if '*' in swap_pairs else None
+                                in_face = swap_pairs[idx_s] if idx_s in swap_pairs else swap_pairs['*'] if '*' in swap_pairs else -1
                                 if in_face == -1: # round-robin
-                                    in_face = rr%len(targets)
+                                    in_face = rr_targets[rr%len(rr_targets)]
                                     rr+=1
                                 if in_face is not None:
                                     img = self.get_face_swapper().get(img, faces[idx-1], targets[in_face-1], paste_back=True)
