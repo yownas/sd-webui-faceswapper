@@ -56,7 +56,7 @@ class Script(scripts.Script):
 
     # run at the end of sequence for always-visible scripts
     def postprocess(self, p, processed, is_enabled, replace, restore, source_face_dict, swap_rules):  # pylint: disable=arguments-differ
-        if is_enabled:
+        if is_enabled and not shared.state.interrupted:
             if isinstance(source_face_dict["image"], str):
                 source_face = decode_base64_to_image(source_face_dict["image"])
             else:
@@ -79,6 +79,8 @@ class Script(scripts.Script):
             img_len = len(processed.images)
             with tqdm(total=img_len, desc="Face swapping", unit="image") as progress:
                 for i in range(img_len):
+                    if shared.state.interrupted:
+                        break
                     tgt=0
                     try:
                         img = cv2.cvtColor(np.asarray(processed.images[i]), cv2.COLOR_RGB2BGR)
@@ -106,6 +108,8 @@ class Script(scripts.Script):
 
                             rr = 0
                             for idx in range(1, len(faces)+1):
+                                if shared.state.interrupted:
+                                    break
                                 idx_s = str(idx)
                                 in_face = swap_pairs[idx_s] if idx_s in swap_pairs else swap_pairs['*'] if '*' in swap_pairs else -1
                                 if in_face == -1: # round-robin
