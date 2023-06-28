@@ -44,8 +44,7 @@ class Script(scripts.Script):
         global FACE_SWAPPER
         if FACE_SWAPPER is None:
             model_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), '../inswapper_128.onnx')
-            FACE_SWAPPER = insightface.model_zoo.get_model(model_path, download=True, download_zip=True)
-            #FACE_SWAPPER = insightface.model_zoo.get_model('inswapper_128.onnx', download=True, download_zip=True)
+            FACE_SWAPPER = insightface.model_zoo.get_model(model_path, download=False, download_zip=False)
         return FACE_SWAPPER
 
     def get_face_analyser(self):
