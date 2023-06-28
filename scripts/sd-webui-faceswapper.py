@@ -94,7 +94,7 @@ class Script(scripts.Script):
                             swap_rules = re.sub(r'(^ | $)', r'', swap_rules) # Trim
 
                             swap_pairs = {}
-                            rr_targets = list(range(1, len(targets)+1))
+                            rr_targets = {}
                             for rule in swap_rules.split(' '):
                                 in_face, out_faces = rule.split('>', 1)
                                 if out_faces == '*':
@@ -112,10 +112,10 @@ class Script(scripts.Script):
                                     break
                                 idx_s = str(idx)
                                 in_face = swap_pairs[idx_s] if idx_s in swap_pairs else swap_pairs['*'] if '*' in swap_pairs else -1
-                                if in_face == -1: # round-robin
+                                if in_face == -1 and len(rr_targets): # round-robin
                                     in_face = rr_targets[rr%len(rr_targets)]
                                     rr+=1
-                                if in_face is not None:
+                                if in_face is not -1:
                                     img = self.get_face_swapper().get(img, faces[idx-1], targets[in_face-1], paste_back=True)
                         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                         if restore:
