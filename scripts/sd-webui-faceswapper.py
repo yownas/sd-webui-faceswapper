@@ -104,7 +104,7 @@ class Script(scripts.Script):
                                     for out_face in out_faces.split(','):
                                         swap_pairs[out_face] = -1 if in_face == '*' else int(in_face) 
 
-                            rr = 0
+                            rr = 1
                             for idx in range(1, len(faces)+1):
                                 idx_s = str(idx)
                                 in_face = swap_pairs[idx_s] if idx_s in swap_pairs else swap_pairs['*'] if '*' in swap_pairs else -1
