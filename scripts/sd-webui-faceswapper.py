@@ -84,6 +84,8 @@ class Script(scripts.Script):
                     tgt=0
                     try:
                         img = cv2.cvtColor(np.asarray(processed.images[i]), cv2.COLOR_RGB2BGR)
+                        if shared.opts.live_previews_enable:
+                            shared.state.assign_current_image(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))
                         faces = sorted(self.get_face_analyser().get(img), key=lambda x: x.bbox[0])
                         if faces:
                             if not swap_rules:
