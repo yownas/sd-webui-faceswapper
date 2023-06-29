@@ -117,6 +117,8 @@ class Script(scripts.Script):
                                     rr+=1
                                 if in_face is not -1:
                                     img = self.get_face_swapper().get(img, faces[idx-1], targets[in_face-1], paste_back=True)
+                                    if shared.opts.live_previews_enable:
+                                        shared.state.assign_current_image(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))
                         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                         if restore:
                             img = Image.fromarray(face_restoration.restore_faces(np.asarray(img)))
