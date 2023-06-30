@@ -56,7 +56,7 @@ class Script(scripts.Script):
 
     # run at the end of sequence for always-visible scripts
     def postprocess(self, p, processed, is_enabled, replace, restore, source_face_dict, swap_rules):  # pylint: disable=arguments-differ
-        if is_enabled:
+        if is_enabled and not shared.state.interrupted:
             if isinstance(source_face_dict["image"], str):
                 source_face = decode_base64_to_image(source_face_dict["image"])
             else:
@@ -79,9 +79,13 @@ class Script(scripts.Script):
             img_len = len(processed.images)
             with tqdm(total=img_len, desc="Face swapping", unit="image") as progress:
                 for i in range(img_len):
+                    if shared.state.interrupted:
+                        break
                     tgt=0
                     try:
                         img = cv2.cvtColor(np.asarray(processed.images[i]), cv2.COLOR_RGB2BGR)
+                        if shared.opts.live_previews_enable:
+                            shared.state.assign_current_image(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))
                         faces = sorted(self.get_face_analyser().get(img), key=lambda x: x.bbox[0])
                         if faces:
                             if not swap_rules:
@@ -92,7 +96,7 @@ class Script(scripts.Script):
                             swap_rules = re.sub(r'(^ | $)', r'', swap_rules) # Trim
 
                             swap_pairs = {}
-                            rr_targets = list(range(1, len(targets)+1))
+                            rr_targets = {}
                             for rule in swap_rules.split(' '):
                                 in_face, out_faces = rule.split('>', 1)
                                 if out_faces == '*':
@@ -106,13 +110,17 @@ class Script(scripts.Script):
 
                             rr = 0
                             for idx in range(1, len(faces)+1):
+                                if shared.state.interrupted:
+                                    break
                                 idx_s = str(idx)
                                 in_face = swap_pairs[idx_s] if idx_s in swap_pairs else swap_pairs['*'] if '*' in swap_pairs else -1
-                                if in_face == -1: # round-robin
+                                if in_face == -1 and len(rr_targets): # round-robin
                                     in_face = rr_targets[rr%len(rr_targets)]
                                     rr+=1
-                                if in_face is not None:
+                                if in_face is not -1:
                                     img = self.get_face_swapper().get(img, faces[idx-1], targets[in_face-1], paste_back=True)
+                                    if shared.opts.live_previews_enable:
+                                        shared.state.assign_current_image(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))
                         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                         if restore:
                             img = Image.fromarray(face_restoration.restore_faces(np.asarray(img)))
