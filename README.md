@@ -4,9 +4,11 @@ Extension to swap faces in Stable Diffusion webui
 # Installation
 Install manually.
 
+On Windows you will also need to download and install [Visual Studio](https://visualstudio.microsoft.com/downloads/). Make sure to include the Python and C++ packages.
+
 It might break, and not work with some other extensions who need another version of the insightface package. This extensions is experimental, I can not help you.
 
-Requires you to download inswapper_128.onnx and place it in the sd-webui-faceswapper folder.
+Requires you to download [inswapper_128.onnx](https://huggingface.co/henryruhs/roop/resolve/main/inswapper_128.onnx) and place it in the sd-webui-faceswapper folder.
 
 This extension is inspired by [Roop](https://github.com/s0md3v/roop), you can find the inswapper_128.onnx in their wiki. I recommend that you use the extension by the same developer. [sd-webui-roop](https://github.com/s0md3v/sd-webui-roop)
 
