@@ -1,4 +1,5 @@
 import os
+import sys
 import cv2
 import torch
 import gradio as gr
@@ -54,6 +55,26 @@ class Script(scripts.Script):
             FACE_ANALYSER.prepare(ctx_id=0, det_size=(640, 640))
         return FACE_ANALYSER
 
+    def swap_matchrules(self, img, in_faces, out_faces, swap_rules):
+        if len(in_faces) and len(out_faces):
+            rridx = 0
+            for out_face in out_faces:
+                if shared.state.interrupted:
+                    break
+                if 'age' in swap_rules:
+                    gap = sys.maxsize
+                    for i in range(len(in_faces)):
+                        if abs(out_face.age - in_faces[i].age) < gap:
+                            gap = abs(out_face.age - in_faces[i].age)
+                            idx = i
+                else:
+                    idx = rridx%len(in_faces)
+                    rridx+=1
+                img = self.get_face_swapper().get(img, out_face, in_faces[idx], paste_back=True)
+                if shared.opts.live_previews_enable:
+                    shared.state.assign_current_image(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))
+        return(img)
+
     # run at the end of sequence for always-visible scripts
     def postprocess(self, p, processed, is_enabled, replace, restore, source_face_dict, swap_rules):  # pylint: disable=arguments-differ
         if is_enabled and not shared.state.interrupted:
@@ -78,6 +99,16 @@ class Script(scripts.Script):
                 return None
             img_len = len(processed.images)
             with tqdm(total=img_len, desc="Face swapping", unit="image") as progress:
+                if img_len:
+                    swap_rules = re.sub(r'(sex|gender)', r'sex', swap_rules)
+                    swap_rules = re.sub(r'(age|old)', r'age', swap_rules)
+                    swap_rules = re.sub(r'[\s;:|]+', r' ', swap_rules)
+                    swap_rules = re.sub(r' *([>,]) *', r'\1', swap_rules) # Remove \s around > & ,
+                    swap_rules = re.sub(r' +', r' ', swap_rules)
+                    swap_rules = re.sub(r'(^ | $)', r'', swap_rules) # Trim
+                    if not swap_rules:
+                        swap_rules = '*>*' # default rule
+
                 for i in range(img_len):
                     if shared.state.interrupted:
                         break
@@ -85,42 +116,60 @@ class Script(scripts.Script):
                     try:
                         img = cv2.cvtColor(np.asarray(processed.images[i]), cv2.COLOR_RGB2BGR)
                         if shared.opts.live_previews_enable:
-                            shared.state.assign_current_image(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))
+                            shared.state.assign_current_image(processed.images[i])
                         faces = sorted(self.get_face_analyser().get(img), key=lambda x: x.bbox[0])
                         if faces:
-                            if not swap_rules:
-                                swap_rules = '*>*' # default rule
-                            swap_rules = re.sub(r'[\s;:|]+', r' ', swap_rules)
-                            swap_rules = re.sub(r' *([>,]) *', r'\1', swap_rules) # Remove \s around > & ,
-                            swap_rules = re.sub(r' +', r' ', swap_rules)
-                            swap_rules = re.sub(r'(^ | $)', r'', swap_rules) # Trim
+                            if 'match' in swap_rules: # "match sex age"
+                                in_f = []
+                                in_m = []
+                                out_f = []
+                                out_m = []
 
-                            swap_pairs = {}
-                            rr_targets = {}
-                            for rule in swap_rules.split(' '):
-                                in_face, out_faces = rule.split('>', 1)
-                                if out_faces == '*':
-                                  if in_face == '*':
-                                      rr_targets = list(range(1, len(targets)+1))
-                                  else:
-                                      rr_targets = list(map(int, in_face.split(',')))
-                                else:
-                                    for out_face in out_faces.split(','):
-                                        swap_pairs[out_face] = -1 if in_face == '*' else int(in_face) 
+                                # sort faces by sex
+                                for face in targets:
+                                    if "sex" in swap_rules and face.sex == "F":
+                                        in_f.append(face)
+                                    else:
+                                        in_m.append(face)
+                                for face in faces:
+                                    if "sex" in swap_rules and face.sex == "F":
+                                        out_f.append(face)
+                                    else:
+                                        out_m.append(face)
 
-                            rr = 0
-                            for idx in range(1, len(faces)+1):
-                                if shared.state.interrupted:
-                                    break
-                                idx_s = str(idx)
-                                in_face = swap_pairs[idx_s] if idx_s in swap_pairs else swap_pairs['*'] if '*' in swap_pairs else -1
-                                if in_face == -1 and len(rr_targets): # round-robin
-                                    in_face = rr_targets[rr%len(rr_targets)]
-                                    rr+=1
-                                if in_face is not -1:
-                                    img = self.get_face_swapper().get(img, faces[idx-1], targets[in_face-1], paste_back=True)
-                                    if shared.opts.live_previews_enable:
-                                        shared.state.assign_current_image(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))
+                                # Swap faces
+                                img = self.swap_matchrules(img, in_f, out_f, swap_rules)
+                                img = self.swap_matchrules(img, in_m, out_m, swap_rules)
+                            else:
+                                # Use swap rules
+                                swap_pairs = {}
+                                rr_targets = {}
+                                for rule in swap_rules.split(' '):
+                                    in_face, out_faces = rule.split('>', 1)
+                                    if out_faces == '*':
+                                      if in_face == '*':
+                                          rr_targets = list(range(1, len(targets)+1))
+                                      else:
+                                          rr_targets = list(map(int, in_face.split(',')))
+                                    else:
+                                        for out_face in out_faces.split(','):
+                                            swap_pairs[out_face] = -1 if in_face == '*' else int(in_face) 
+
+                                rr = 0
+                                for idx in range(1, len(faces)+1):
+                                    if shared.state.interrupted:
+                                        break
+                                    idx_s = str(idx)
+                                    in_face = swap_pairs[idx_s] if idx_s in swap_pairs else swap_pairs['*'] if '*' in swap_pairs else -1
+                                    if in_face == -1 and len(rr_targets): # round-robin
+                                        in_face = rr_targets[rr%len(rr_targets)]
+                                        rr+=1
+                                    if in_face is not -1:
+                                        # Swap
+                                        img = self.get_face_swapper().get(img, faces[idx-1], targets[in_face-1], paste_back=True)
+                                        if shared.opts.live_previews_enable:
+                                            shared.state.assign_current_image(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))
+
                         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                         if restore:
                             img = Image.fromarray(face_restoration.restore_faces(np.asarray(img)))
