@@ -23,7 +23,7 @@ At the bottom there is a textbox for "swap rules" which will let you decide whic
 
 The format is `(target face)>(generated face number(s))`, for example `2>1,3` will take the second face from the left in the image you uploaded and place it on the first and third face in the generated image. Multiple rules can be added, separated with a space or newline (or one of `:;|`). Using `*` will mean any face in the generated image that doesn't have a rule for it, or a face selected round-robin from the uploaded image. One special case is if you don't want any special rules for the generated faces, you can either use `*>*` (which is the default rule if nothing is specified) or multiple faces, for example `1,3,5>*` to place face number 1, 3 and 5 from the uploaded image to any face in the generated image.
 
-Or you can let the script try to match gender and/or age by using the keyword `match` and any combination of `age` and/or `gender`. Please note that this is a bit unreliable and the model seem to struggle, especially with very young or old people.
+Or you can let the script try to match gender and/or age by using the keyword `match` and any combination of `gender` and/or one of `age` or `similar`. Please note that this is a bit unreliable and the model seem to struggle with gender, especially with very young or old people. `age` will try to match the persons age while `similar` will try to match facial feature/shape (and often hilariously fails).
 
 # API
 Simple example using [sdwebuiapi](https://github.com/mix1009/sdwebuiapi).

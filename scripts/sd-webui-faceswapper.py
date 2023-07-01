@@ -64,12 +64,24 @@ class Script(scripts.Script):
                 if 'age' in swap_rules:
                     gap = sys.maxsize
                     for i in range(len(in_faces)):
-                        if abs(out_face.age - in_faces[i].age) < gap:
-                            gap = abs(out_face.age - in_faces[i].age)
+                        diff = abs(out_face.age - in_faces[i].age)
+                        if diff < gap:
+                            gap = diff
+                            idx = i
+                elif 'similar' in swap_rules: # Match similarity
+                    gap = 0
+                    for i in range(len(in_faces)):
+                        f1 = out_face.normed_embedding
+                        f2 = in_faces[i].normed_embedding
+                        # Based on https://learnopencv.com/face-recognition-with-arcface/
+                        sim = max(np.dot(f1, f2) / (np.sqrt(np.dot(f1, f1)) * np.sqrt(np.dot(f2, f2))), 0)
+                        if sim > gap:
+                            gap = sim
                             idx = i
                 else:
                     idx = rridx%len(in_faces)
                     rridx+=1
+
                 img = self.get_face_swapper().get(img, out_face, in_faces[idx], paste_back=True)
                 if shared.opts.live_previews_enable:
                     shared.state.assign_current_image(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))
@@ -100,6 +112,7 @@ class Script(scripts.Script):
             img_len = len(processed.images)
             with tqdm(total=img_len, desc="Face swapping", unit="image") as progress:
                 if img_len:
+                    swap_rules = re.sub(r'(similar|same|like)', r'similar', swap_rules)
                     swap_rules = re.sub(r'(sex|gender)', r'sex', swap_rules)
                     swap_rules = re.sub(r'(age|old)', r'age', swap_rules)
                     swap_rules = re.sub(r'[\s;:|]+', r' ', swap_rules)
