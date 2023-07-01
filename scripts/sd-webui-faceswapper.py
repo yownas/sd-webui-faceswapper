@@ -11,6 +11,8 @@ from tqdm import tqdm
 from modules.api.api import decode_base64_to_image
 from modules import scripts, shared, face_restoration
 import re
+from torchmetrics import StructuralSimilarityIndexMeasure
+from torchvision import transforms
 
 FACE_ANALYSER = None
 FACE_SWAPPER = None
@@ -37,7 +39,7 @@ class Script(scripts.Script):
             with gr.Row():
                 source_face = gr.Image(label="Face", tool="sketch", type="numpy")
             with gr.Row():
-                swap_rules = gr.Textbox(label="Swap rules", lines=1)
+                swap_rules = gr.Textbox(label="Swap rules", placeholder="Example: \"1>1,3; 2>4\" or \"match gender age\"", lines=1)
 
         return [is_enabled, replace, restore, source_face, swap_rules]
 
@@ -55,7 +57,7 @@ class Script(scripts.Script):
             FACE_ANALYSER.prepare(ctx_id=0, det_size=(640, 640))
         return FACE_ANALYSER
 
-    def swap_matchrules(self, img, in_faces, out_faces, swap_rules):
+    def swap_matchrules(self, img, target_img, in_faces, out_faces, swap_rules):
         if len(in_faces) and len(out_faces):
             rridx = 0
             for out_face in out_faces:
@@ -78,11 +80,26 @@ class Script(scripts.Script):
                         if sim > gap:
                             gap = sim
                             idx = i
+                elif 'ssim' in swap_rules: # Match ssim (very very experimental)
+                    SSIM = StructuralSimilarityIndexMeasure(data_range=1.0)
+                    gap = 0
+                    for i in range(len(in_faces)):
+                        ofb = out_face.bbox
+                        ifb = in_faces[i].bbox
+                        t = transforms.Compose([transforms.ToTensor()])
+                        f1 = t(Image.fromarray(img).crop((ofb[0], ofb[1], ofb[2], ofb[3])).resize((128, 128))).unsqueeze(0)
+                        f2 = t(Image.fromarray(target_img).crop((ifb[0], ifb[1], ifb[2], ifb[3])).resize((128, 128))).unsqueeze(0)
+
+                        sim = float(SSIM(f1, f2))
+                        if sim > gap:
+                            gap = sim
+                            idx = i
                 else:
                     idx = rridx%len(in_faces)
                     rridx+=1
 
-                img = self.get_face_swapper().get(img, out_face, in_faces[idx], paste_back=True)
+                if idx:
+                    img = self.get_face_swapper().get(img, out_face, in_faces[idx], paste_back=True)
                 if shared.opts.live_previews_enable:
                     shared.state.assign_current_image(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))
         return(img)
@@ -151,8 +168,8 @@ class Script(scripts.Script):
                                         out_m.append(face)
 
                                 # Swap faces
-                                img = self.swap_matchrules(img, in_f, out_f, swap_rules)
-                                img = self.swap_matchrules(img, in_m, out_m, swap_rules)
+                                img = self.swap_matchrules(img, target_img, in_f, out_f, swap_rules)
+                                img = self.swap_matchrules(img, target_img, in_m, out_m, swap_rules)
                             else:
                                 # Use swap rules
                                 swap_pairs = {}
