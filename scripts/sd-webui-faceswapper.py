@@ -25,6 +25,7 @@ class Script(scripts.Script):
     class Rules(object):
         rules = ''
         verbose = False
+        switch = False
         pass
 
     def LOG(self, text):
@@ -158,9 +159,17 @@ class Script(scripts.Script):
                     if cnt:
                         self.LOG("Verbose mode enabled")
                         swaprules.verbose = True
+                    swap_rules, cnt = re.subn(r' *switch *', '', swap_rules)
+                    if cnt:
+                        if swaprules.verbose:
+                            self.LOG("Switch images")
+                        swaprules.switch = True
+                        orig_target_img = target_img
+                        orig_targets = targets
                     swap_rules = re.sub(r'(similar|same|like)', r'similar', swap_rules)
                     swap_rules = re.sub(r'(sex|gender)', r'sex', swap_rules)
                     swap_rules = re.sub(r'(age|old)', r'age', swap_rules)
+                    swap_rules = re.sub(r'(<|=)', r'>', swap_rules)
                     swap_rules = re.sub(r' *([>,]) *', r'\1', swap_rules) # Remove \s around > & ,
                     swap_rules = re.sub(r' +', r' ', swap_rules)
                     swap_rules = re.sub(r'(^ | $)', r'', swap_rules) # Trim
@@ -177,6 +186,11 @@ class Script(scripts.Script):
                         if shared.opts.live_previews_enable:
                             shared.state.assign_current_image(processed.images[i])
                         faces = sorted(self.get_face_analyser().get(img), key=lambda x: x.bbox[0])
+                        if swaprules.switch:
+                            target_img = img
+                            targets = faces
+                            img = orig_target_img
+                            faces = orig_targets
                         if faces:
                             if 'match' in swaprules.rules: # "match sex age"
                                 in_f, in_m, out_f, out_m = [], [], [], []

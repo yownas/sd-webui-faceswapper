@@ -27,7 +27,9 @@ Or you can let the script automatically try to match gender and/or age by using 
 
 You can also use `match random` to randomly choose a face. If you enter multiple options, the order of precedence is; `age`, `similar` and last `random`.
 
-Adding the word `verbose` will enable some logging.
+Adding keyword `verbose` will enable some logging.
+
+Adding keyword `switch` will swap the uploaded image with the generated before swapping faces and will place generated faces on the image you uploaded.
 
 # API
 Simple example using [sdwebuiapi](https://github.com/mix1009/sdwebuiapi).
