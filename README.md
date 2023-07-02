@@ -25,6 +25,8 @@ There are two ways to specify the rules. Either `(target face)>(generated face n
 
 Or you can let the script automatically try to match gender and/or age by using the keyword `match` and any combination of `gender` and/or one of `age` or `similar`. Please note that this is a bit unreliable and the model seem to struggle with gender, especially with very young or old people. `age` will try to match the persons age while `similar` will try to match facial feature/shape (and often hilariously fails).
 
+You can also use `match random` to randomly choose a face. If you enter multiple options, the order of precedence is; `age`, `similar` and last `random`.
+
 Adding the word `verbose` will enable some logging.
 
 # API

@@ -13,6 +13,7 @@ from modules import scripts, shared, face_restoration
 import re
 from torchmetrics import StructuralSimilarityIndexMeasure
 from torchvision import transforms
+import random
 
 FACE_ANALYSER = None
 FACE_SWAPPER = None
@@ -79,8 +80,10 @@ class Script(scripts.Script):
                         if diff < gap:
                             gap = diff
                             idx = i
+                    if swaprules.verbose:
+                        self.LOG(f"Match: age gap {gap}, faces {idx+1}>{out_idx+1}")
                 elif 'similar' in swaprules.rules: # Match similarity
-                    gap = 0
+                    gap = -1
                     for i in range(len(in_faces)):
                         f1 = out_faces[out_idx].normed_embedding
                         f2 = in_faces[i].normed_embedding
@@ -89,6 +92,8 @@ class Script(scripts.Script):
                         if sim > gap:
                             gap = sim
                             idx = i
+                    if swaprules.verbose:
+                        self.LOG(f"Match: similar gap {gap}, faces {idx+1}>{out_idx+1}")
                 elif 'ssim' in swaprules.rules: # Match ssim (very very experimental)
                     SSIM = StructuralSimilarityIndexMeasure(data_range=1.0)
                     gap = 0
@@ -103,6 +108,12 @@ class Script(scripts.Script):
                         if sim > gap:
                             gap = sim
                             idx = i
+                    if swaprules.verbose:
+                        self.LOG(f"Match: SSIM gap {gap}, faces {idx+1}>{out_idx+1}")
+                elif 'random' in swaprules.rules: # Match randomly
+                    idx = random.randrange(0, len(in_faces))
+                    if swaprules.verbose:
+                        self.LOG(f"Match: random, faces {idx+1}>{out_idx+1}")
                 else:
                     idx = rridx%len(in_faces)
                     rridx+=1
