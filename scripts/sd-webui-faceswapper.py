@@ -31,6 +31,9 @@ class Script(scripts.Script):
     def LOG(self, text):
         print(f"Face swapper: {text}")
 
+    def ERROR(self, text):
+        print(f"Face swapper ERROR: {text}")
+
     # script title to show in ui
     def title(self):
         return 'Face swapper'
@@ -122,7 +125,10 @@ class Script(scripts.Script):
                 if idx is not None:
                     if swaprules.verbose:
                         self.LOG(f"Match: swap {out_idx+1} with {idx+1}")
-                    img = self.get_face_swapper().get(img, out_faces[out_idx], in_faces[idx], paste_back=True)
+                    if out_idx <= len(out_faces) and idx <= len(in_faces):
+                        img = self.get_face_swapper().get(img, out_faces[out_idx], in_faces[idx], paste_back=True)
+                    else:
+                        self.ERROR(f"Index out of range: {idx} > {len(faces)} or {in_face} > {len(targets)}")
                 if shared.opts.live_previews_enable:
                     shared.state.assign_current_image(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))
         return(img)
@@ -155,11 +161,11 @@ class Script(scripts.Script):
             with tqdm(total=img_len, desc="Face swapping", unit="image") as progress:
                 if img_len:
                     swap_rules = re.sub(r'[\s;:|]+', r' ', swap_rules)
-                    swap_rules, cnt = re.subn(r' *verbose *', '', swap_rules)
+                    swap_rules, cnt = re.subn(r' *verbose *', ' ', swap_rules)
                     if cnt:
                         self.LOG("Verbose mode enabled")
                         swaprules.verbose = True
-                    swap_rules, cnt = re.subn(r' *switch *', '', swap_rules)
+                    swap_rules, cnt = re.subn(r' *switch *', ' ', swap_rules)
                     if cnt:
                         if swaprules.verbose:
                             self.LOG("Switch images")
@@ -214,35 +220,31 @@ class Script(scripts.Script):
                                 img = self.swap_matchrules(img, target_img, in_m, out_m, swaprules)
                             else:
                                 # Use swap rules
-                                swap_pairs = {}
-                                rr_targets = {}
-                                for rule in swaprules.rules.split(' '):
-                                    in_face, out_faces = rule.split('>', 1)
-                                    if out_faces == '*':
-                                      if in_face == '*':
-                                          rr_targets = list(range(1, len(targets)+1))
-                                      else:
-                                          rr_targets = list(map(int, in_face.split(',')))
-                                    else:
-                                        for out_face in out_faces.split(','):
-                                            swap_pairs[out_face] = -1 if in_face == '*' else int(in_face) 
+                                allout = ",".join(map(str, list(range(1, len(faces)+1))))
+                                alltgt = list(range(1, len(targets)+1))
 
-                                if swaprules.verbose:
-                                    self.LOG(f"Rules: {swaprules.rules}")
-                                rr = 0
-                                for idx in range(1, len(faces)+1):
-                                    if shared.state.interrupted:
-                                        break
-                                    idx_s = str(idx)
-                                    in_face = swap_pairs[idx_s] if idx_s in swap_pairs else swap_pairs['*'] if '*' in swap_pairs else -1
-                                    if in_face == -1 and len(rr_targets): # round-robin
-                                        in_face = rr_targets[rr%len(rr_targets)]
-                                        rr+=1
-                                    if in_face is not -1:
-                                        # Swap
+                                for rule in swaprules.rules.split(' '):
+                                    in_faces, out_faces = rule.split('>', 1)
+
+                                    # Make list of input faces
+                                    inlist = []
+                                    inidx = 0
+                                    for in_face in in_faces.split(','):
+                                        inlist += alltgt if in_face == '*' else [int(in_face)]
+
+                                    # replace * with all out_faces
+                                    out_faces = re.sub('\*', allout, out_faces)
+
+                                    for out_idx in out_faces.split(','):
+                                        idx=int(out_idx)
+                                        in_face = inlist[inidx%len(inlist)]
+                                        inidx+=1
                                         if swaprules.verbose:
                                             self.LOG(f"Swap {idx} with {in_face}")
-                                        img = self.get_face_swapper().get(img, faces[idx-1], targets[in_face-1], paste_back=True)
+                                        if idx <= len(faces) and in_face <= len(targets):
+                                            img = self.get_face_swapper().get(img, faces[idx-1], targets[in_face-1], paste_back=True)
+                                        else:
+                                            self.ERROR(f"Index out of range: {idx} > {len(faces)} or {in_face} > {len(targets)}")
                                         if shared.opts.live_previews_enable:
                                             shared.state.assign_current_image(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))
 
