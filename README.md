@@ -33,7 +33,7 @@ Adding keyword `switch` will swap the uploaded image with the generated before s
 
 # Examples
 
-No rule, using the default `\*>\*`. All images in the uploaded swapped to all in the generated.
+No rule, using the default `*>*`. All images in the uploaded swapped to all in the generated.
 ![default_example](https://github.com/yownas/sd-webui-faceswapper/assets/13150150/03f0a631-82a9-4f2c-ad47-18f361ee9473)
 
 Multiple faces in uploaded image. Swap with Hermione and then John Wick, until all faces are done.
