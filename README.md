@@ -31,6 +31,31 @@ Adding keyword `verbose` will enable some logging.
 
 Adding keyword `switch` will swap the uploaded image with the generated before swapping faces and will place generated faces on the image you uploaded.
 
+# Examples
+
+No rule, using the default `\*>\*`. All images in the uploaded swapped to all in the generated.
+![default_example](https://github.com/yownas/sd-webui-faceswapper/assets/13150150/03f0a631-82a9-4f2c-ad47-18f361ee9473)
+
+Multiple faces in uploaded image. Swap with Hermione and then John Wick, until all faces are done.
+![def](https://github.com/yownas/sd-webui-faceswapper/assets/13150150/c8b8daa2-4ba1-4cfa-b06d-873dc1d583ad)
+
+Masking one of the faces.
+![mask](https://github.com/yownas/sd-webui-faceswapper/assets/13150150/cba79db4-8323-4f7f-90b2-b829adaf7374)
+
+`1>1,2,3 2>5,6,7` Hermione to face 1, 2 and 3, John Wick to face 5, 6 and 7.
+![1to123-2to567](https://github.com/yownas/sd-webui-faceswapper/assets/13150150/0ed2ac51-652c-4a47-983a-8be8b37de2ab)
+
+`2,1>3,4,5` Place face #2 and #1 on faces 3 to 5.
+![21to345](https://github.com/yownas/sd-webui-faceswapper/assets/13150150/2dd25ea7-3714-45d2-a921-730dfe9f04a7)
+
+`match gender` Trying to match the gender of the faces replaced.
+![matchgender](https://github.com/yownas/sd-webui-faceswapper/assets/13150150/88df8872-4be5-438a-8387-0d692cabd17c)
+
+`match gender switch`, using the keyword `switch` to switch the images before swapping faces.
+![matchgenderswitch](https://github.com/yownas/sd-webui-faceswapper/assets/13150150/1bdb2fcd-d695-4753-b88f-30fb33ccb660)
+
+
+
 # API
 Simple example using [sdwebuiapi](https://github.com/mix1009/sdwebuiapi).
 
