@@ -14,6 +14,7 @@ import re
 from torchmetrics import StructuralSimilarityIndexMeasure
 from torchvision import transforms
 import random
+import warnings
 
 FACE_ANALYSER = None
 FACE_SWAPPER = None
@@ -60,14 +61,18 @@ class Script(scripts.Script):
         global FACE_SWAPPER
         if FACE_SWAPPER is None:
             model_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), '../inswapper_128.onnx')
+            sys.stdout = open(os.devnull, 'w')
             FACE_SWAPPER = insightface.model_zoo.get_model(model_path, download=False, download_zip=False)
+            sys.stdout = sys.__stdout__
         return FACE_SWAPPER
 
     def get_face_analyser(self):
         global FACE_ANALYSER
         if FACE_ANALYSER is None:
+            sys.stdout = open(os.devnull, 'w')
             FACE_ANALYSER = insightface.app.FaceAnalysis(name='buffalo_l')
             FACE_ANALYSER.prepare(ctx_id=0, det_size=(640, 640))
+            sys.stdout = sys.__stdout__
         return FACE_ANALYSER
 
     def swap_matchrules(self, img, target_img, in_faces, out_faces, swaprules):
@@ -136,6 +141,7 @@ class Script(scripts.Script):
     # run at the end of sequence for always-visible scripts
     def postprocess(self, p, processed, is_enabled, replace, restore, source_face_dict, swap_rules):  # pylint: disable=arguments-differ
         if is_enabled and not shared.state.interrupted:
+            warnings.filterwarnings('ignore', category=FutureWarning, module='insightface')
             swaprules = self.Rules()
 
             if isinstance(source_face_dict["image"], str):
