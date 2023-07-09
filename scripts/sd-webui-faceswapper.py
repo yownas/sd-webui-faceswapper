@@ -9,7 +9,7 @@ from PIL import Image
 import numpy as np
 from tqdm import tqdm
 from modules.api.api import decode_base64_to_image
-from modules import scripts, shared, face_restoration
+from modules import scripts, script_callbacks, shared, face_restoration, images
 import re
 from torchmetrics import StructuralSimilarityIndexMeasure
 from torchvision import transforms
@@ -19,7 +19,7 @@ import warnings
 FACE_ANALYSER = None
 FACE_SWAPPER = None
 
-class Script(scripts.Script):
+class Sd_webui_faceswap(scripts.Script):
     def __init__(self): # pylint: disable=useless-super-delegation
         super().__init__()
 
@@ -265,3 +265,106 @@ class Script(scripts.Script):
                         print(e)
                         pass
                     progress.update(1)
+
+#-----------------------------------------------#
+# Face swap tab & functions
+
+#FIXME should probably be shared with the code above
+def get_face_swapper():
+    global FACE_SWAPPER
+    if FACE_SWAPPER is None:
+        model_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), '../inswapper_128.onnx')
+        sys.stdout = open(os.devnull, 'w')
+        FACE_SWAPPER = insightface.model_zoo.get_model(model_path, download=False, download_zip=False)
+        sys.stdout = sys.__stdout__
+    return FACE_SWAPPER
+
+def get_face_analyser():
+    global FACE_ANALYSER
+    if FACE_ANALYSER is None:
+        sys.stdout = open(os.devnull, 'w')
+        FACE_ANALYSER = insightface.app.FaceAnalysis(name='buffalo_l')
+        FACE_ANALYSER.prepare(ctx_id=0, det_size=(640, 640))
+        sys.stdout = sys.__stdout__
+    return FACE_ANALYSER
+
+def select_faces(face_img, mask_img):
+    allfaces = sorted(get_face_analyser().get(face_img), key=lambda x: x.bbox[0])
+    faces = []
+    for face in allfaces:
+        #b = face.bbox
+        b = list(map(lambda x: max(0, int(x)), face.bbox))
+        mask = mask_img[b[1]:b[3], b[0]:b[2]]
+        if mask.size and np.amax(mask) > 0:
+            faces.append(face)
+    if len(faces) == 0:
+        faces = allfaces
+    return faces
+
+def faceswap_l2r(image_l, image_r):
+    img_l = cv2.cvtColor(np.asarray(image_l['image']), cv2.COLOR_RGB2BGR)
+    mask_l = cv2.cvtColor(np.asarray(image_l['mask']), cv2.COLOR_RGB2GRAY)
+    try:
+        faces_l = select_faces(img_l, mask_l)
+    except IndexError:
+        # No face?
+        return image_r
+
+    img_r = cv2.cvtColor(np.asarray(image_r['image']), cv2.COLOR_RGB2BGR)
+    mask_r = cv2.cvtColor(np.asarray(image_r['mask']), cv2.COLOR_RGB2GRAY)
+    try:
+        faces_r = select_faces(img_r, mask_r)
+    except IndexError:
+        # No face?
+        return image_r
+
+    if faces_l and faces_r:
+        idx = 0
+        for out_face in faces_r:
+            img_r = get_face_swapper().get(img_r, out_face, faces_l[idx%len(faces_l)], paste_back=True)
+            idx+=1
+
+    img_r = cv2.cvtColor(img_r, cv2.COLOR_BGR2RGB)
+    return img_r
+
+def faceswap_r2l(image_l, image_r):
+    return faceswap_l2r(image_r, image_l)
+
+def faceswap_save(image):
+    images.save_image(Image.fromarray(image['image']), shared.opts.outdir_save, "", prompt="faceswapper", extension="png")
+
+def add_tab():
+    with gr.Blocks(analytics_enabled=False) as tab:
+        with gr.Row():
+            with gr.Column(scale=1):
+                image_l = gr.Image(label='Left', tool='sketch')
+            with gr.Column(scale=1):
+                image_r = gr.Image(label='Right', tool='sketch')
+        with gr.Row():
+            with gr.Column(scale=1):
+                with gr.Row():
+                    save_l = gr.Button('Save')
+                    swap_l2r = gr.Button('Swap ->', variant='primary')
+            with gr.Column(scale=1):
+                with gr.Row():
+                    swap_r2l = gr.Button('<- Swap', variant='primary')
+                    save_r = gr.Button('Save')
+
+        swap_l2r.click(faceswap_l2r, show_progress=True, inputs=[image_l, image_r], outputs=[image_r])
+        swap_r2l.click(faceswap_r2l, show_progress=True, inputs=[image_l, image_r], outputs=[image_l])
+
+        save_l.click(faceswap_save, show_progress=False, inputs=[image_l], outputs=[])
+        save_r.click(faceswap_save, show_progress=False, inputs=[image_r], outputs=[])
+
+    return [(tab, "Face swapper", "faceswapper")]
+
+def on_ui_settings():
+    section = ("faceswapper", "Face swapper")
+    shared.opts.add_option(
+        "sd_webui_faceswapper_showtab",
+        shared.OptionInfo(False, "Enable Face swapper tab (requires complete restart)", section=section),
+    )
+
+if shared.opts.data.get("sd_webui_faceswapper_showtab", False):
+    script_callbacks.on_ui_tabs(add_tab)
+script_callbacks.on_ui_settings(on_ui_settings)

@@ -31,6 +31,14 @@ Adding keyword `verbose` will enable some logging.
 
 Adding keyword `switch` will swap the uploaded image with the generated before swapping faces and will place generated faces on the image you uploaded.
 
+# Settings and Face swapper tab
+
+In the Webui `Settings` you can enable a Face swapper tab. This part is still under development and will get more functions in the future.
+
+At the moment you can upload two images and swap faces between them. Or use the sketch tool to mark faces to be swapped.
+
+Saved images should show up in `outputs/save/`.
+
 # Examples
 
 No rule, using the default `*>*`. All images in the uploaded swapped to all in the generated.
