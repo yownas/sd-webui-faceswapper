@@ -51,7 +51,7 @@ class Sd_webui_faceswap(scripts.Script):
                 replace = gr.Checkbox(label='Replace original', value=False)
                 restore = gr.Checkbox(label='Restore faces', value=False)
             with gr.Row():
-                source_face = gr.Image(label="Face", tool="sketch", type="numpy")
+                source_face = gr.Image(show_label=False, tool="sketch", type="numpy")
             with gr.Row():
                 swap_rules = gr.Textbox(label="Swap rules", placeholder="Example: \"1>1,3; 2>4\" or \"match gender age\"", lines=1)
 
@@ -337,9 +337,9 @@ def add_tab():
     with gr.Blocks(analytics_enabled=False) as tab:
         with gr.Row():
             with gr.Column(scale=1):
-                image_l = gr.Image(label='Left', tool='sketch')
+                image_l = gr.Image(elem_id='faceswapper_left', show_label=False, interactive=True, tool='sketch')
             with gr.Column(scale=1):
-                image_r = gr.Image(label='Right', tool='sketch')
+                    image_r = gr.Image(elem_id='faceswapper_right', show_label=False, interactive=True, tool='sketch')
         with gr.Row():
             with gr.Column(scale=1):
                 with gr.Row():
