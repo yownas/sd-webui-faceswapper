@@ -35,7 +35,9 @@ Adding keyword `switch` will swap the uploaded image with the generated before s
 
 In the Webui `Settings` you can enable a Face swapper tab. This part is still under development and will get more functions in the future.
 
-At the moment you can upload two images and swap faces between them. Or use the sketch tool to mark faces to be swapped.
+At the moment you can upload two images and swap faces between them. Use the sketch tool to mark faces to be swapped.
+
+Please notice that you need to clear the marked faces manually after using `Copy`. [gradio-app #4290](https://github.com/gradio-app/gradio/issues/4290)
 
 Saved images should show up in `outputs/save/`.
 

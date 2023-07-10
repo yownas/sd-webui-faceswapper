@@ -1,4 +1,4 @@
-#faceswapper_left, #faceswapper_right {
+#faceswapper_left, #faceswapper_right, #faceswapper_result {
     overflow: overlay !important;
     resize: auto;
     background: var(--panel-background-fill);

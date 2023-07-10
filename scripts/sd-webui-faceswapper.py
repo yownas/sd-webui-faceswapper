@@ -9,7 +9,7 @@ from PIL import Image
 import numpy as np
 from tqdm import tqdm
 from modules.api.api import decode_base64_to_image
-from modules import scripts, script_callbacks, shared, face_restoration, images
+from modules import scripts, script_callbacks, shared, face_restoration, images, generation_parameters_copypaste
 import re
 from torchmetrics import StructuralSimilarityIndexMeasure
 from torchvision import transforms
@@ -333,6 +333,9 @@ def faceswap_r2l(image_l, image_r):
 def faceswap_save(image):
     images.save_image(Image.fromarray(image['image']), shared.opts.outdir_save, "", prompt="faceswapper", extension="png")
 
+def faceswap_copy(image):
+    return image
+
 def add_tab():
     with gr.Blocks(analytics_enabled=False) as tab:
         with gr.Row():
@@ -340,21 +343,35 @@ def add_tab():
                 image_l = gr.Image(elem_id='faceswapper_left', show_label=False, interactive=True, tool='sketch')
             with gr.Column(scale=1):
                     image_r = gr.Image(elem_id='faceswapper_right', show_label=False, interactive=True, tool='sketch')
+            with gr.Column(scale=1):
+                    result_img = gr.Image(elem_id='faceswapper_result', label='Result', show_label=True, interactive=False, type='pil', tool=None)
         with gr.Row():
             with gr.Column(scale=1):
                 with gr.Row():
-                    save_l = gr.Button('Save')
+                    copy_l = gr.Button('Copy result')
                     swap_l2r = gr.Button('Swap ->', variant='primary')
             with gr.Column(scale=1):
                 with gr.Row():
                     swap_r2l = gr.Button('<- Swap', variant='primary')
-                    save_r = gr.Button('Save')
+                    copy_r = gr.Button('Copy result')
+            with gr.Column(scale=1):
+                with gr.Row():
+                    send_to_buttons = generation_parameters_copypaste.create_buttons(["img2img", "inpaint", "extras"])
+                    save_result = gr.Button('Save', variant='primary')
 
-        swap_l2r.click(faceswap_l2r, show_progress=True, inputs=[image_l, image_r], outputs=[image_r])
-        swap_r2l.click(faceswap_r2l, show_progress=True, inputs=[image_l, image_r], outputs=[image_l])
+        swap_l2r.click(faceswap_l2r, show_progress=True, inputs=[image_l, image_r], outputs=[result_img])
+        swap_r2l.click(faceswap_r2l, show_progress=True, inputs=[image_l, image_r], outputs=[result_img])
 
-        save_l.click(faceswap_save, show_progress=False, inputs=[image_l], outputs=[])
-        save_r.click(faceswap_save, show_progress=False, inputs=[image_r], outputs=[])
+        copy_l.click(faceswap_copy, show_progress=False, inputs=[result_img], outputs=[image_l])
+        copy_r.click(faceswap_copy, show_progress=False, inputs=[result_img], outputs=[image_r])
+
+        save_result.click(faceswap_save, show_progress=False, inputs=[result_img], outputs=[])
+
+        try:
+            for tabname, button in send_to_buttons.items():
+                generation_parameters_copypaste.register_paste_params_button(generation_parameters_copypaste.ParamBinding(paste_button=button, tabname=tabname, source_image_component=result_img))
+        except:
+            pass
 
     return [(tab, "Face swapper", "faceswapper")]
 
