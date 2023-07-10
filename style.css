@@ -1,3 +1,6 @@
 #faceswapper_left, #faceswapper_right {
+    overflow: overlay !important;
     resize: auto;
+    background: var(--panel-background-fill);
+    z-index: 5;
 }
