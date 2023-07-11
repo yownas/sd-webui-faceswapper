@@ -372,7 +372,7 @@ def faceswap_groop(image, groop_file, groop_url, restore, det_thresh):
             for out_face in out_faces:
                 frame = get_face_swapper().get(frame, out_face, faces[idx%len(faces)], paste_back=True)
                 if restore:
-                    frame = Image.fromarray(face_restoration.restore_faces(np.asarray(frame)))
+                    frame = face_restoration.restore_faces(np.asarray(frame))
                 idx+=1
             out_imgs.append(Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
             progress.update(1)
