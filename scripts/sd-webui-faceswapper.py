@@ -19,6 +19,25 @@ import warnings
 FACE_ANALYSER = None
 FACE_SWAPPER = None
 
+def get_face_swapper():
+    global FACE_SWAPPER
+    if FACE_SWAPPER is None:
+        model_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), '../inswapper_128.onnx')
+        sys.stdout = open(os.devnull, 'w')
+        FACE_SWAPPER = insightface.model_zoo.get_model(model_path, download=False, download_zip=False)
+        sys.stdout = sys.__stdout__
+    return FACE_SWAPPER
+
+def get_face_analyser():
+    global FACE_ANALYSER
+    if FACE_ANALYSER is None:
+        sys.stdout = open(os.devnull, 'w')
+        FACE_ANALYSER = insightface.app.FaceAnalysis(name='buffalo_l')
+        FACE_ANALYSER.prepare(ctx_id=0, det_size=(640, 640))
+        sys.stdout = sys.__stdout__
+    return FACE_ANALYSER
+
+
 class Sd_webui_faceswap(scripts.Script):
     def __init__(self): # pylint: disable=useless-super-delegation
         super().__init__()
@@ -56,24 +75,6 @@ class Sd_webui_faceswap(scripts.Script):
                 swap_rules = gr.Textbox(label="Swap rules", placeholder="Example: \"1>1,3; 2>4\" or \"match gender age\"", lines=1)
 
         return [is_enabled, replace, restore, source_face, swap_rules]
-
-    def get_face_swapper(self):
-        global FACE_SWAPPER
-        if FACE_SWAPPER is None:
-            model_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), '../inswapper_128.onnx')
-            sys.stdout = open(os.devnull, 'w')
-            FACE_SWAPPER = insightface.model_zoo.get_model(model_path, download=False, download_zip=False)
-            sys.stdout = sys.__stdout__
-        return FACE_SWAPPER
-
-    def get_face_analyser(self):
-        global FACE_ANALYSER
-        if FACE_ANALYSER is None:
-            sys.stdout = open(os.devnull, 'w')
-            FACE_ANALYSER = insightface.app.FaceAnalysis(name='buffalo_l')
-            FACE_ANALYSER.prepare(ctx_id=0, det_size=(640, 640))
-            sys.stdout = sys.__stdout__
-        return FACE_ANALYSER
 
     def swap_matchrules(self, img, target_img, in_faces, out_faces, swaprules):
         if len(in_faces) and len(out_faces):
@@ -131,7 +132,7 @@ class Sd_webui_faceswap(scripts.Script):
                     if swaprules.verbose:
                         self.LOG(f"Match: swap {out_idx+1} with {idx+1}")
                     if out_idx <= len(out_faces) and idx <= len(in_faces):
-                        img = self.get_face_swapper().get(img, out_faces[out_idx], in_faces[idx], paste_back=True)
+                        img = get_face_swapper().get(img, out_faces[out_idx], in_faces[idx], paste_back=True)
                     else:
                         self.ERROR(f"Index out of range: {idx} > {len(faces)} or {in_face} > {len(targets)}")
                 if shared.opts.live_previews_enable:
@@ -159,7 +160,7 @@ class Sd_webui_faceswap(scripts.Script):
                 target_img = cv2.bitwise_and(target_img, cv2.bitwise_not(target_mask))
 
             try:
-                targets = sorted(self.get_face_analyser().get(target_img), key=lambda x: x.bbox[0])
+                targets = sorted(get_face_analyser().get(target_img), key=lambda x: x.bbox[0])
             except IndexError:
                 # No face?
                 return None
@@ -197,7 +198,7 @@ class Sd_webui_faceswap(scripts.Script):
                         img = cv2.cvtColor(np.asarray(processed.images[i]), cv2.COLOR_RGB2BGR)
                         if shared.opts.live_previews_enable:
                             shared.state.assign_current_image(processed.images[i])
-                        faces = sorted(self.get_face_analyser().get(img), key=lambda x: x.bbox[0])
+                        faces = sorted(get_face_analyser().get(img), key=lambda x: x.bbox[0])
                         if swaprules.switch:
                             target_img = img
                             targets = faces
@@ -248,7 +249,7 @@ class Sd_webui_faceswap(scripts.Script):
                                         if swaprules.verbose:
                                             self.LOG(f"Swap {idx} with {in_face}")
                                         if idx <= len(faces) and in_face <= len(targets):
-                                            img = self.get_face_swapper().get(img, faces[idx-1], targets[in_face-1], paste_back=True)
+                                            img = get_face_swapper().get(img, faces[idx-1], targets[in_face-1], paste_back=True)
                                         else:
                                             self.ERROR(f"Index out of range: {idx} > {len(faces)} or {in_face} > {len(targets)}")
                                         if shared.opts.live_previews_enable:
@@ -268,25 +269,6 @@ class Sd_webui_faceswap(scripts.Script):
 
 #-----------------------------------------------#
 # Face swap tab & functions
-
-#FIXME should probably be shared with the code above
-def get_face_swapper():
-    global FACE_SWAPPER
-    if FACE_SWAPPER is None:
-        model_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), '../inswapper_128.onnx')
-        sys.stdout = open(os.devnull, 'w')
-        FACE_SWAPPER = insightface.model_zoo.get_model(model_path, download=False, download_zip=False)
-        sys.stdout = sys.__stdout__
-    return FACE_SWAPPER
-
-def get_face_analyser():
-    global FACE_ANALYSER
-    if FACE_ANALYSER is None:
-        sys.stdout = open(os.devnull, 'w')
-        FACE_ANALYSER = insightface.app.FaceAnalysis(name='buffalo_l')
-        FACE_ANALYSER.prepare(ctx_id=0, det_size=(640, 640))
-        sys.stdout = sys.__stdout__
-    return FACE_ANALYSER
 
 def select_faces(face_img, mask_img):
     allfaces = sorted(get_face_analyser().get(face_img), key=lambda x: x.bbox[0])
