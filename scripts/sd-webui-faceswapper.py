@@ -17,6 +17,7 @@ import random
 import warnings
 
 FACE_ANALYSER = None
+FACE_ANALYSER_THRESH = None
 FACE_SWAPPER = None
 
 def get_face_swapper():
@@ -28,12 +29,13 @@ def get_face_swapper():
         sys.stdout = sys.__stdout__
     return FACE_SWAPPER
 
-def get_face_analyser():
-    global FACE_ANALYSER
-    if FACE_ANALYSER is None:
+def get_face_analyser(det_thresh=0.5):
+    global FACE_ANALYSER, FACE_ANALYSER_THRESH
+    if FACE_ANALYSER is None or det_thresh != FACE_ANALYSER_THRESH:
+        FACE_ANALYSER_THRESH = det_thresh
         sys.stdout = open(os.devnull, 'w')
         FACE_ANALYSER = insightface.app.FaceAnalysis(name='buffalo_l')
-        FACE_ANALYSER.prepare(ctx_id=0, det_size=(640, 640))
+        FACE_ANALYSER.prepare(ctx_id=0, det_thresh=det_thresh, det_size=(640, 640))
         sys.stdout = sys.__stdout__
     return FACE_ANALYSER
 
@@ -270,8 +272,8 @@ class Sd_webui_faceswap(scripts.Script):
 #-----------------------------------------------#
 # Face swap tab & functions
 
-def select_faces(face_img, mask_img):
-    allfaces = sorted(get_face_analyser().get(face_img), key=lambda x: x.bbox[0])
+def select_faces(face_img, mask_img, det_thresh):
+    allfaces = sorted(get_face_analyser(det_thresh=det_thresh).get(face_img), key=lambda x: x.bbox[0])
     faces = []
     for face in allfaces:
         #b = face.bbox
@@ -283,11 +285,11 @@ def select_faces(face_img, mask_img):
         faces = allfaces
     return faces
 
-def faceswap_l2r(image_l, image_r):
+def faceswap_l2r(image_l, image_r, restore, det_thresh):
     img_l = cv2.cvtColor(np.asarray(image_l['image']), cv2.COLOR_RGB2BGR)
     mask_l = cv2.cvtColor(np.asarray(image_l['mask']), cv2.COLOR_RGB2GRAY)
     try:
-        faces_l = select_faces(img_l, mask_l)
+        faces_l = select_faces(img_l, mask_l, det_thresh)
     except IndexError:
         # No face?
         return image_r
@@ -295,7 +297,7 @@ def faceswap_l2r(image_l, image_r):
     img_r = cv2.cvtColor(np.asarray(image_r['image']), cv2.COLOR_RGB2BGR)
     mask_r = cv2.cvtColor(np.asarray(image_r['mask']), cv2.COLOR_RGB2GRAY)
     try:
-        faces_r = select_faces(img_r, mask_r)
+        faces_r = select_faces(img_r, mask_r, det_thresh)
     except IndexError:
         # No face?
         return image_r
@@ -307,10 +309,12 @@ def faceswap_l2r(image_l, image_r):
             idx+=1
 
     img_r = cv2.cvtColor(img_r, cv2.COLOR_BGR2RGB)
+    if restore:
+        img_r = Image.fromarray(face_restoration.restore_faces(np.asarray(img_r)))
     return img_r
 
-def faceswap_r2l(image_l, image_r):
-    return faceswap_l2r(image_r, image_l)
+def faceswap_r2l(image_l, image_r, restore, det_thresh):
+    return faceswap_l2r(image_r, image_l, restore, det_thresh)
 
 def faceswap_save(image):
     images.save_image(Image.fromarray(image['image']), shared.opts.outdir_save, "", prompt="faceswapper", extension="png")
@@ -340,9 +344,14 @@ def add_tab():
                 with gr.Row():
                     send_to_buttons = generation_parameters_copypaste.create_buttons(["img2img", "inpaint", "extras"])
                     save_result = gr.Button('Save', variant='primary')
+        with gr.Row():
+            with gr.Column(scale=1):
+                restore = gr.Checkbox(label='Restore faces', value=False)
+            with gr.Column(scale=2):
+                det_thresh = gr.Slider(label='Detection threshold', value=0.5, minimum=0.0, maximum=1.0, step=0.01)
 
-        swap_l2r.click(faceswap_l2r, show_progress=True, inputs=[image_l, image_r], outputs=[result_img])
-        swap_r2l.click(faceswap_r2l, show_progress=True, inputs=[image_l, image_r], outputs=[result_img])
+        swap_l2r.click(faceswap_l2r, show_progress=True, inputs=[image_l, image_r, restore, det_thresh], outputs=[result_img])
+        swap_r2l.click(faceswap_r2l, show_progress=True, inputs=[image_l, image_r, restore, det_thresh], outputs=[result_img])
 
         copy_l.click(faceswap_copy, show_progress=False, inputs=[result_img], outputs=[image_l])
         copy_r.click(faceswap_copy, show_progress=False, inputs=[result_img], outputs=[image_r])
