@@ -31,16 +31,6 @@ Adding keyword `verbose` will enable some logging.
 
 Adding keyword `switch` will swap the uploaded image with the generated before swapping faces and will place generated faces on the image you uploaded.
 
-# Settings and Face swapper tab
-
-In the Webui `Settings` you can enable a Face swapper tab. This part is still under development and will get more functions in the future.
-
-At the moment you can upload two images and swap faces between them. Use the sketch tool to mark faces to be swapped.
-
-Please notice that you need to clear the marked faces manually after using `Copy`. [gradio-app #4290](https://github.com/gradio-app/gradio/issues/4290)
-
-Saved images should show up in `outputs/save/`.
-
 # Examples
 
 No rule, using the default `*>*`. All images in the uploaded swapped to all in the generated.
@@ -64,7 +54,21 @@ Masking one of the faces.
 `match gender switch`, using the keyword `switch` to switch the images before swapping faces.
 ![matchgenderswitch](https://github.com/yownas/sd-webui-faceswapper/assets/13150150/1bdb2fcd-d695-4753-b88f-30fb33ccb660)
 
+# Settings and Face swapper tab
 
+In the Webui `Settings` you can enable a Face swapper tab. This part is still under development and will get more functions in the future.
+
+At the moment you can upload two images and swap faces between them. Use the sketch tool to mark faces to be swapped.
+
+You can copy the result and swap more faces to/from it. Please notice that you need to clear the marked faces manually after using `Copy`. [gradio-app #4290](https://github.com/gradio-app/gradio/issues/4290)
+
+`Analyze` will draw a box around the faces it find and annotate them with an estimated age and gender.
+
+Send the result to img2img, inpaint or postprocess. Saved images should show up in `outputs/save/`.
+
+`Detection threshold` is how sensitive face detection is. It can safely be left at 0.5.
+
+![Screenshot from 2023-07-11 21-40-21](https://github.com/yownas/sd-webui-faceswapper/assets/13150150/20a8f91a-1584-47c1-9841-687690aaec2a)
 
 # API
 Simple example using [sdwebuiapi](https://github.com/mix1009/sdwebuiapi).
