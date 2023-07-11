@@ -15,6 +15,8 @@ from torchmetrics import StructuralSimilarityIndexMeasure
 from torchvision import transforms
 import random
 import warnings
+import imageio.v3 as iio
+import tempfile
 
 FACE_ANALYSER = None
 FACE_ANALYSER_THRESH = None
@@ -275,12 +277,13 @@ class Sd_webui_faceswap(scripts.Script):
 def select_faces(face_img, mask_img, det_thresh):
     allfaces = sorted(get_face_analyser(det_thresh=det_thresh).get(face_img), key=lambda x: x.bbox[0])
     faces = []
-    for face in allfaces:
-        #b = face.bbox
-        b = list(map(lambda x: max(0, int(x)), face.bbox))
-        mask = mask_img[b[1]:b[3], b[0]:b[2]]
-        if mask.size and np.amax(mask) > 0:
-            faces.append(face)
+    if mask_img is not None:
+        for face in allfaces:
+            #b = face.bbox
+            b = list(map(lambda x: max(0, int(x)), face.bbox))
+            mask = mask_img[b[1]:b[3], b[0]:b[2]]
+            if mask.size and np.amax(mask) > 0:
+                faces.append(face)
     if len(faces) == 0:
         faces = allfaces
     return faces
@@ -332,6 +335,55 @@ def faceswap_drawon(image, det_thresh):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     return img
 
+def faceswap_groop(image, groop_file, groop_url, restore, det_thresh):
+    img = cv2.cvtColor(np.asarray(image['image']), cv2.COLOR_RGB2BGR)
+    mask = cv2.cvtColor(np.asarray(image['mask']), cv2.COLOR_RGB2GRAY)
+    try:
+        faces = select_faces(img, mask, det_thresh)
+    except IndexError:
+        # No face?
+        return None
+
+    if groop_file:
+        input = groop_file.name
+    else:
+        input = groop_url
+
+    # Read input
+    x = iio.immeta(input)
+    duration = x['duration']
+    loop = x['loop']
+
+    gif = cv2.VideoCapture(input) 
+
+    # Swap
+    in_imgs = []
+    out_imgs = []
+    while(True):
+        ret, frame = gif.read()
+        if not ret:
+            break
+        in_imgs.append(frame)
+
+    with tqdm(total=len(in_imgs), desc="Face swapping", unit="frames") as progress:
+        for frame in in_imgs:
+            out_faces = select_faces(frame, None, det_thresh)
+            idx = 0
+            for out_face in out_faces:
+                frame = get_face_swapper().get(frame, out_face, faces[idx%len(faces)], paste_back=True)
+                if restore:
+                    frame = Image.fromarray(face_restoration.restore_faces(np.asarray(frame)))
+                idx+=1
+            out_imgs.append(Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
+            progress.update(1)
+
+    outputf = tempfile.NamedTemporaryFile(suffix='.gif', delete=False)
+    output = outputf.name
+    out_imgs[0].save(output, save_all=True, append_images=out_imgs[1:], optimize=True, duration=duration, loop=loop)
+    outputf.close()
+
+    return output
+
 def add_tab():
     with gr.Blocks(analytics_enabled=False) as tab:
         with gr.Row():
@@ -360,10 +412,23 @@ def add_tab():
                     save_result = gr.Button('Save', variant='primary')
         with gr.Row():
             with gr.Column(scale=2):
-                info = gr.Markdown(value='[Github](https://github.com/yownas/sd-webui-faceswapper)')
+                info1 = gr.Markdown(value='[Github](https://github.com/yownas/sd-webui-faceswapper)')
             with gr.Column(scale=1):
                 restore = gr.Checkbox(label='Restore faces', value=False)
                 det_thresh = gr.Slider(label='Detection threshold', value=0.5, minimum=0.0, maximum=1.0, step=0.01)
+        with gr.Accordion(label='Groop - Swap faces in GIF files', open=False):
+            with gr.Row():
+                with gr.Column(scale=1):
+                    info2 = gr.Markdown(value='')
+                with gr.Column(scale=1):
+                    groop_file = gr.File(label='Upload GIF', visible=True, file_types=['.gif'], file_count = 'single')
+                    groop_url = gr.Textbox(label='URL to GIF', visible=True)
+                with gr.Column(scale=1):
+                    with gr.Row():
+                        info3 = gr.Markdown(value='Use one of the input faces above...')
+                    with gr.Row():
+                        groop_button1 = gr.Button('Use left', variant='primary')
+                        groop_button2 = gr.Button('Use right', variant='primary')
 
         swap_l2r.click(faceswap_swap, show_progress=True, inputs=[image_l, image_r, restore, det_thresh], outputs=[result_img])
         swap_r2l.click(faceswap_swap, show_progress=True, inputs=[image_r, image_l, restore, det_thresh], outputs=[result_img])
@@ -375,6 +440,9 @@ def add_tab():
         drawon_r.click(faceswap_drawon, show_progress=True, inputs=[image_r, det_thresh], outputs=[result_img])
 
         save_result.click(faceswap_save, show_progress=False, inputs=[result_img], outputs=[])
+
+        groop_button1.click(faceswap_groop, show_progress=True, inputs=[image_l, groop_file, groop_url, restore, det_thresh], outputs=[result_img])
+        groop_button2.click(faceswap_groop, show_progress=True, inputs=[image_r, groop_file, groop_url, restore, det_thresh], outputs=[result_img])
 
         try:
             for tabname, button in send_to_buttons.items():
