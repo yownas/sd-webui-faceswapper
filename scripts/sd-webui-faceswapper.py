@@ -285,42 +285,52 @@ def select_faces(face_img, mask_img, det_thresh):
         faces = allfaces
     return faces
 
-def faceswap_l2r(image_l, image_r, restore, det_thresh):
-    img_l = cv2.cvtColor(np.asarray(image_l['image']), cv2.COLOR_RGB2BGR)
-    mask_l = cv2.cvtColor(np.asarray(image_l['mask']), cv2.COLOR_RGB2GRAY)
+def faceswap_swap(image_1, image_2, restore, det_thresh):
+    img_1 = cv2.cvtColor(np.asarray(image_1['image']), cv2.COLOR_RGB2BGR)
+    mask_1 = cv2.cvtColor(np.asarray(image_1['mask']), cv2.COLOR_RGB2GRAY)
     try:
-        faces_l = select_faces(img_l, mask_l, det_thresh)
+        faces_1 = select_faces(img_1, mask_1, det_thresh)
     except IndexError:
         # No face?
-        return image_r
+        return image_2
 
-    img_r = cv2.cvtColor(np.asarray(image_r['image']), cv2.COLOR_RGB2BGR)
-    mask_r = cv2.cvtColor(np.asarray(image_r['mask']), cv2.COLOR_RGB2GRAY)
+    img_2 = cv2.cvtColor(np.asarray(image_2['image']), cv2.COLOR_RGB2BGR)
+    mask_2 = cv2.cvtColor(np.asarray(image_2['mask']), cv2.COLOR_RGB2GRAY)
     try:
-        faces_r = select_faces(img_r, mask_r, det_thresh)
+        faces_2 = select_faces(img_2, mask_2, det_thresh)
     except IndexError:
         # No face?
-        return image_r
+        return image_2
 
-    if faces_l and faces_r:
+    if faces_1 and faces_2:
         idx = 0
-        for out_face in faces_r:
-            img_r = get_face_swapper().get(img_r, out_face, faces_l[idx%len(faces_l)], paste_back=True)
+        for out_face in faces_2:
+            img_2 = get_face_swapper().get(img_2, out_face, faces_1[idx%len(faces_1)], paste_back=True)
             idx+=1
 
-    img_r = cv2.cvtColor(img_r, cv2.COLOR_BGR2RGB)
+    img_2 = cv2.cvtColor(img_2, cv2.COLOR_BGR2RGB)
     if restore:
-        img_r = Image.fromarray(face_restoration.restore_faces(np.asarray(img_r)))
-    return img_r
-
-def faceswap_r2l(image_l, image_r, restore, det_thresh):
-    return faceswap_l2r(image_r, image_l, restore, det_thresh)
+        img_2 = Image.fromarray(face_restoration.restore_faces(np.asarray(img_2)))
+    return img_2
 
 def faceswap_save(image):
     images.save_image(Image.fromarray(image['image']), shared.opts.outdir_save, "", prompt="faceswapper", extension="png")
 
 def faceswap_copy(image):
     return image
+
+def faceswap_drawon(image, det_thresh):
+    img = cv2.cvtColor(np.asarray(image['image']), cv2.COLOR_RGB2BGR)
+    mask = cv2.cvtColor(np.asarray(image['mask']), cv2.COLOR_RGB2GRAY)
+    try:
+        faces = select_faces(img, mask, det_thresh)
+    except IndexError:
+        # No face?
+        return image
+
+    img = get_face_analyser(det_thresh=det_thresh).draw_on(img, faces)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    return img
 
 def add_tab():
     with gr.Blocks(analytics_enabled=False) as tab:
@@ -334,27 +344,35 @@ def add_tab():
         with gr.Row():
             with gr.Column(scale=1):
                 with gr.Row():
-                    copy_l = gr.Button('Copy result')
                     swap_l2r = gr.Button('Swap ->', variant='primary')
+                with gr.Row():
+                    drawon_l = gr.Button('Analyse')
+                    copy_l = gr.Button('Copy result')
             with gr.Column(scale=1):
                 with gr.Row():
                     swap_r2l = gr.Button('<- Swap', variant='primary')
+                with gr.Row():
+                    drawon_r = gr.Button('Analyze')
                     copy_r = gr.Button('Copy result')
             with gr.Column(scale=1):
                 with gr.Row():
                     send_to_buttons = generation_parameters_copypaste.create_buttons(["img2img", "inpaint", "extras"])
                     save_result = gr.Button('Save', variant='primary')
         with gr.Row():
+            with gr.Column(scale=2):
+                info = gr.Markdown(value='[Github](https://github.com/yownas/sd-webui-faceswapper)')
             with gr.Column(scale=1):
                 restore = gr.Checkbox(label='Restore faces', value=False)
-            with gr.Column(scale=2):
                 det_thresh = gr.Slider(label='Detection threshold', value=0.5, minimum=0.0, maximum=1.0, step=0.01)
 
-        swap_l2r.click(faceswap_l2r, show_progress=True, inputs=[image_l, image_r, restore, det_thresh], outputs=[result_img])
-        swap_r2l.click(faceswap_r2l, show_progress=True, inputs=[image_l, image_r, restore, det_thresh], outputs=[result_img])
+        swap_l2r.click(faceswap_swap, show_progress=True, inputs=[image_l, image_r, restore, det_thresh], outputs=[result_img])
+        swap_r2l.click(faceswap_swap, show_progress=True, inputs=[image_r, image_l, restore, det_thresh], outputs=[result_img])
 
         copy_l.click(faceswap_copy, show_progress=False, inputs=[result_img], outputs=[image_l])
         copy_r.click(faceswap_copy, show_progress=False, inputs=[result_img], outputs=[image_r])
+
+        drawon_l.click(faceswap_drawon, show_progress=True, inputs=[image_l, det_thresh], outputs=[result_img])
+        drawon_r.click(faceswap_drawon, show_progress=True, inputs=[image_r, det_thresh], outputs=[result_img])
 
         save_result.click(faceswap_save, show_progress=False, inputs=[result_img], outputs=[])
 
