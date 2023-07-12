@@ -346,8 +346,10 @@ def faceswap_listfaces(image, det_thresh):
     return faces
 
 def faceswap_groop(image_l, image_r, groop_file, groop_url, restore, det_thresh):
-    faces = faceswap_listfaces(image_l, det_thresh)
-    faces += faceswap_listfaces(image_r, det_thresh)
+    if image_l is not None:
+        faces = faceswap_listfaces(image_l, det_thresh)
+    if image_r is not None:
+        faces += faceswap_listfaces(image_r, det_thresh)
 
     if groop_file:
         input = groop_file.name
