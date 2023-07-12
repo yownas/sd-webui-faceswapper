@@ -335,14 +335,19 @@ def faceswap_drawon(image, det_thresh):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     return img
 
-def faceswap_groop(image, groop_file, groop_url, restore, det_thresh):
+def faceswap_listfaces(image, det_thresh):
     img = cv2.cvtColor(np.asarray(image['image']), cv2.COLOR_RGB2BGR)
     mask = cv2.cvtColor(np.asarray(image['mask']), cv2.COLOR_RGB2GRAY)
     try:
         faces = select_faces(img, mask, det_thresh)
     except IndexError:
         # No face?
-        return None
+        return []
+    return faces
+
+def faceswap_groop(image_l, image_r, groop_file, groop_url, restore, det_thresh):
+    faces = faceswap_listfaces(image_l, det_thresh)
+    faces += faceswap_listfaces(image_r, det_thresh)
 
     if groop_file:
         input = groop_file.name
@@ -422,13 +427,12 @@ def add_tab():
                     info2 = gr.Markdown(value='')
                 with gr.Column(scale=1):
                     groop_file = gr.File(label='Upload GIF', visible=True, file_types=['.gif'], file_count = 'single')
-                    groop_url = gr.Textbox(label='URL to GIF', visible=True)
+                    groop_url = gr.Textbox(label='URL of GIF', visible=True)
                 with gr.Column(scale=1):
                     with gr.Row():
-                        info3 = gr.Markdown(value='Use one of the input faces above...')
+                        info3 = gr.Markdown(value='Select faces above...')
                     with gr.Row():
-                        groop_button1 = gr.Button('Use left', variant='primary')
-                        groop_button2 = gr.Button('Use right', variant='primary')
+                        groop_button = gr.Button('Groop', variant='primary')
 
         swap_l2r.click(faceswap_swap, show_progress=True, inputs=[image_l, image_r, restore, det_thresh], outputs=[result_img])
         swap_r2l.click(faceswap_swap, show_progress=True, inputs=[image_r, image_l, restore, det_thresh], outputs=[result_img])
@@ -441,8 +445,7 @@ def add_tab():
 
         save_result.click(faceswap_save, show_progress=False, inputs=[result_img], outputs=[])
 
-        groop_button1.click(faceswap_groop, show_progress=True, inputs=[image_l, groop_file, groop_url, restore, det_thresh], outputs=[result_img])
-        groop_button2.click(faceswap_groop, show_progress=True, inputs=[image_r, groop_file, groop_url, restore, det_thresh], outputs=[result_img])
+        groop_button.click(faceswap_groop, show_progress=True, inputs=[image_l, image_r, groop_file, groop_url, restore, det_thresh], outputs=[result_img])
 
         try:
             for tabname, button in send_to_buttons.items():
