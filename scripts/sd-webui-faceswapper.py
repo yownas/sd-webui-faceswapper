@@ -316,9 +316,6 @@ def faceswap_swap(image_1, image_2, restore, det_thresh):
         img_2 = Image.fromarray(face_restoration.restore_faces(np.asarray(img_2)))
     return img_2
 
-def faceswap_save(image):
-    images.save_image(Image.fromarray(image['image']), shared.opts.outdir_save, "", prompt="faceswapper", extension="png")
-
 def faceswap_copy(image):
     return image
 
@@ -416,7 +413,6 @@ def add_tab():
             with gr.Column(scale=1):
                 with gr.Row():
                     send_to_buttons = generation_parameters_copypaste.create_buttons(["img2img", "inpaint", "extras"])
-                    save_result = gr.Button('Save', variant='primary')
         with gr.Row():
             with gr.Column(scale=2):
                 info1 = gr.Markdown(value='[Github](https://github.com/yownas/sd-webui-faceswapper)')
@@ -444,8 +440,6 @@ def add_tab():
 
         drawon_l.click(faceswap_drawon, show_progress=True, inputs=[image_l, det_thresh], outputs=[result_img])
         drawon_r.click(faceswap_drawon, show_progress=True, inputs=[image_r, det_thresh], outputs=[result_img])
-
-        save_result.click(faceswap_save, show_progress=False, inputs=[result_img], outputs=[])
 
         groop_button.click(faceswap_groop, show_progress=True, inputs=[image_l, image_r, groop_file, groop_url, restore, det_thresh], outputs=[result_img])
 
