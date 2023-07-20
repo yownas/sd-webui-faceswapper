@@ -41,6 +41,13 @@ def get_face_analyser(det_thresh=0.5):
         sys.stdout = sys.__stdout__
     return FACE_ANALYSER
 
+def cosDist(face1, face2):
+    f1 = face1.embedding
+    f2 = face2.embedding
+    a = np.matmul(np.transpose(f1), f2)
+    b = np.sum(np.multiply(f1, f1))
+    c = np.sum(np.multiply(f2, f2))
+    return 1 - (a / (np.sqrt(b) * np.sqrt(c)))
 
 class Sd_webui_faceswap(scripts.Script):
     def __init__(self): # pylint: disable=useless-super-delegation
@@ -65,14 +72,6 @@ class Sd_webui_faceswap(scripts.Script):
     # is ui visible: process/postprocess triggers for always-visible scripts otherwise use run as entry point
     def show(self, is_img2img):
         return scripts.AlwaysVisible
-
-    def cosDist(self, face1, face2):
-        f1 = face1.embedding
-        f2 = face2.embedding
-        a = np.matmul(np.transpose(f1), f2)
-        b = np.sum(np.multiply(f1, f1))
-        c = np.sum(np.multiply(f2, f2))
-        return 1 - (a / (np.sqrt(b) * np.sqrt(c)))
 
     # ui components
     def ui(self, is_img2img): # pylint: disable=unused-argument
@@ -110,7 +109,7 @@ class Sd_webui_faceswap(scripts.Script):
                         f1 = out_faces[out_idx]
                         f2 = in_faces[i]
 
-                        sim = self.cosDist(f1, f2)
+                        sim = cosDist(f1, f2)
 
                         if sim < gap:
                             gap = sim
@@ -351,11 +350,22 @@ def faceswap_listfaces(image, det_thresh):
         return []
     return faces
 
-def faceswap_groop(image_l, image_r, groop_file, groop_url, restore, det_thresh):
+def faceswap_groop(image_l, image_r, groop_file, groop_url, restore, det_thresh, sim_thresh):
+    faces = []
     if image_l is not None:
         faces = faceswap_listfaces(image_l, det_thresh)
     if image_r is not None:
         faces += faceswap_listfaces(image_r, det_thresh)
+
+    # If using sim_thresh, we need at least two faces
+    tgt = None
+    if sim_thresh > 0:
+        if len(faces) < 2:
+            ERROR(f"Not enough faces.")
+            return None
+        else:
+            tgt = faces[0]
+            faces = faces[1:]
 
     if groop_file:
         input = groop_file.name
@@ -383,7 +393,8 @@ def faceswap_groop(image_l, image_r, groop_file, groop_url, restore, det_thresh)
             out_faces = select_faces(frame, None, det_thresh)
             idx = 0
             for out_face in out_faces:
-                frame = get_face_swapper().get(frame, out_face, faces[idx%len(faces)], paste_back=True)
+                if sim_thresh == 0 or tgt is not None and cosDist(tgt, out_face) <= sim_thresh:
+                    frame = get_face_swapper().get(frame, out_face, faces[idx%len(faces)], paste_back=True)
                 if restore:
                     frame = face_restoration.restore_faces(np.asarray(frame))
                 idx+=1
@@ -439,6 +450,8 @@ def add_tab():
                     with gr.Row():
                         info3 = gr.Markdown(value='Select faces above...')
                     with gr.Row():
+                        sim_thresh = gr.Slider(label='Similarity threshold (If > 0, use first face as target)', value=0.0, minimum=0.0, maximum=1.0, step=0.01)
+                    with gr.Row():
                         groop_button = gr.Button('Groop', variant='primary')
 
         swap_l2r.click(faceswap_swap, show_progress=True, inputs=[image_l, image_r, restore, det_thresh], outputs=[result_img])
@@ -450,7 +463,7 @@ def add_tab():
         drawon_l.click(faceswap_drawon, show_progress=True, inputs=[image_l, det_thresh], outputs=[result_img])
         drawon_r.click(faceswap_drawon, show_progress=True, inputs=[image_r, det_thresh], outputs=[result_img])
 
-        groop_button.click(faceswap_groop, show_progress=True, inputs=[image_l, image_r, groop_file, groop_url, restore, det_thresh], outputs=[result_img])
+        groop_button.click(faceswap_groop, show_progress=True, inputs=[image_l, image_r, groop_file, groop_url, restore, det_thresh, sim_thresh], outputs=[result_img])
 
         try:
             for tabname, button in send_to_buttons.items():
