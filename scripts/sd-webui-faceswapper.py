@@ -66,6 +66,14 @@ class Sd_webui_faceswap(scripts.Script):
     def show(self, is_img2img):
         return scripts.AlwaysVisible
 
+    def cosDist(self, face1, face2):
+        f1 = face1.embedding
+        f2 = face2.embedding
+        a = np.matmul(np.transpose(f1), f2)
+        b = np.sum(np.multiply(f1, f1))
+        c = np.sum(np.multiply(f2, f2))
+        return 1 - (a / (np.sqrt(b) * np.sqrt(c)))
+
     # ui components
     def ui(self, is_img2img): # pylint: disable=unused-argument
         with gr.Accordion('Face swapper', open=False):
@@ -97,13 +105,14 @@ class Sd_webui_faceswap(scripts.Script):
                     if swaprules.verbose:
                         self.LOG(f"Match: age gap {gap}, faces {idx+1}>{out_idx+1}")
                 elif 'similar' in swaprules.rules: # Match similarity
-                    gap = -1
+                    gap = sys.maxsize
                     for i in range(len(in_faces)):
-                        f1 = out_faces[out_idx].normed_embedding
-                        f2 = in_faces[i].normed_embedding
-                        # Based on https://learnopencv.com/face-recognition-with-arcface/
-                        sim = max(np.dot(f1, f2) / (np.sqrt(np.dot(f1, f1)) * np.sqrt(np.dot(f2, f2))), 0)
-                        if sim > gap:
+                        f1 = out_faces[out_idx]
+                        f2 = in_faces[i]
+
+                        sim = self.cosDist(f1, f2)
+
+                        if sim < gap:
                             gap = sim
                             idx = i
                     if swaprules.verbose:
